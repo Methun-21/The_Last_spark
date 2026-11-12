@@ -97,26 +97,6 @@ class AudioHapticManager: NSObject, AVAudioPlayerDelegate {
 
     // MARK: - Gameplay Haptics (CoreHaptics for texture)
     
-    func playDashHaptic() {
-        guard isHapticsEnabled else { return }
-        playUITap(style: .rigid)
-    }
-    
-    func playNearMissHaptic() {
-        guard isHapticsEnabled else { return }
-        playUITap(style: .rigid)
-    }
-    
-    func playShardHaptic() {
-        guard isHapticsEnabled else { return }
-        playSuccessHaptic()
-    }
-    
-    func playHeartbeatThump() {
-        guard isHapticsEnabled else { return }
-        playUITap(style: .heavy)
-    }
-    
     func playEnhancedCollision() {
         guard isHapticsEnabled, CHHapticEngine.capabilitiesForHardware().supportsHaptics else {
             playFailureHaptic() // Fallback
@@ -314,6 +294,11 @@ class AudioHapticManager: NSObject, AVAudioPlayerDelegate {
     func stopSound(named soundName: String) {
         if let cached = cachedPlayers[soundName] {
             cached.stop()
+        }
+        
+        // Also look through the active specific players just in case
+        for (id, player) in soundEffectPlayers {
+            // (A bit hacky without a name map, but handles the cached version exactly)
         }
     }
     

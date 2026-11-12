@@ -15,10 +15,6 @@ struct NeuralLevelNode: View {
     @State private var isPulsing = false
     @State private var rotation: Double = 0
     
-    var sectorColor: Color {
-        GameLevelInfo.info(for: level).sector.themeColor
-    }
-    
     var body: some View {
         Button(action: action) {
             ZStack {
@@ -27,7 +23,7 @@ struct NeuralLevelNode: View {
                     Circle()
                         .stroke(
                             AngularGradient(
-                                gradient: Gradient(colors: [sectorColor, .white, sectorColor.opacity(0.3), sectorColor]),
+                                gradient: Gradient(colors: [.cyan, .blue, .purple, .cyan]),
                                 center: .center
                             ),
                             lineWidth: 3
@@ -73,7 +69,7 @@ struct NeuralLevelNode: View {
                     Circle()
                         .stroke(Color.mint, lineWidth: 2)
                         .frame(width: 68, height: 68)
-                        .opacity(0.6)
+                        .opacity(0.5)
                         .overlay(
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundStyle(Color.mint)
@@ -92,7 +88,7 @@ struct NeuralLevelNode: View {
         case .locked:
             return LinearGradient(colors: [Color.gray.opacity(0.3), Color.black.opacity(0.5)], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .unlocked:
-            return LinearGradient(colors: [sectorColor, sectorColor.opacity(0.6)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            return LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
         case .completed:
             return LinearGradient(colors: [.mint, .teal], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
@@ -101,7 +97,7 @@ struct NeuralLevelNode: View {
     var glowColor: Color {
         switch status {
         case .locked: return .clear
-        case .unlocked: return sectorColor
+        case .unlocked: return .cyan
         case .completed: return .mint
         }
     }

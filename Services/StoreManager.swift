@@ -38,9 +38,6 @@ public class StoreManager: ObservableObject {
     @Published public var reviveCount: Int {
         didSet { UserDefaults.standard.set(reviveCount, forKey: "reviveCount") }
     }
-    @Published public var dashCount: Int {
-        didSet { UserDefaults.standard.set(dashCount, forKey: "dashCount") }
-    }
     
     // Catalog
     public let skins: [PlayerSkin] = [
@@ -61,14 +58,6 @@ public class StoreManager: ObservableObject {
     private init() {
         self.balance = UserDefaults.standard.integer(forKey: "synapseBalance")
         self.reviveCount = UserDefaults.standard.integer(forKey: "reviveCount")
-        
-        // Initial starter dashes (3) if fresh install
-        if UserDefaults.standard.object(forKey: "dashCount") == nil {
-            self.dashCount = 3
-            UserDefaults.standard.set(3, forKey: "dashCount")
-        } else {
-            self.dashCount = UserDefaults.standard.integer(forKey: "dashCount")
-        }
         
         // Convert old unlockedThemes to new system if needed, or just reset for new version
         // Using "unlockedSkins" and "unlockedBackgrounds" keys
@@ -119,27 +108,6 @@ public class StoreManager: ObservableObject {
             return true
         }
         return false
-    }
-    
-    public func buyDash(price: Int = 600) -> Bool {
-        if balance >= price {
-            balance -= price
-            dashCount += 1
-            return true
-        }
-        return false
-    }
-    
-    public func useDash() -> Bool {
-        if dashCount > 0 {
-            dashCount -= 1
-            return true
-        }
-        return false
-    }
-    
-    public func addDash(_ amount: Int = 1) {
-        dashCount += amount
     }
     
     public func getColor(for skinID: String) -> Color {
