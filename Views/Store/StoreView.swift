@@ -88,22 +88,32 @@ public struct StoreView: View {
                 
                 // Content
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 20) {
-                        if selectedTab == .skins {
+                    if selectedTab == .skins {
+                        LazyVGrid(columns: columns, spacing: 20) {
                             ForEach(storeManager.skins) { skin in
                                 SkinCard(skin: skin, storeManager: storeManager)
                             }
-                        } else if selectedTab == .backgrounds {
+                        }
+                        .padding()
+                        .padding(.bottom, 50)
+                    } else if selectedTab == .backgrounds {
+                        LazyVGrid(columns: columns, spacing: 20) {
                             ForEach(storeManager.backgrounds) { bg in
                                 BackgroundCard(bg: bg, storeManager: storeManager)
                             }
-                        } else {
-                            // Power-Ups Section
-                            PowerUpCard(storeManager: storeManager)
                         }
+                        .padding()
+                        .padding(.bottom, 50)
+                    } else {
+                        // Power-Ups — side-by-side equal cards
+                        HStack(alignment: .top, spacing: 16) {
+                            ReviveCard(storeManager: storeManager)
+                            DashCard(storeManager: storeManager)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 8)
+                        .padding(.bottom, 50)
                     }
-                    .padding()
-                    .padding(.bottom, 50)
                 }
             }
         }
@@ -308,80 +318,177 @@ struct BackgroundCard: View {
     }
 }
 
-struct PowerUpCard: View {
+struct ReviveCard: View {
     @ObservedObject var storeManager: StoreManager
-    
+
     var body: some View {
-        BentoCard {
-            VStack(spacing: 16) {
-                // Icon
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [Color.pink.opacity(0.8), Color.red],
-                                center: .center,
-                                startRadius: 20,
-                                endRadius: 60
-                            )
-                        )
-                        .frame(width: 100, height: 100)
-                        .blur(radius: 5)
-                    
-                    Image(systemName: "heart.fill")
-                        .font(.system(size: 50))
-                        .foregroundStyle(.white)
-                        .shadow(color: .pink, radius: 10)
-                }
-                .padding(.top, 20)
-                
-                // Title
-                Text("REVIVE")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                
-                // Description
-                Text("Restore 1 life during gameplay")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(.white.opacity(0.6))
-                    .multilineTextAlignment(.center)
-                
-                // Inventory Count
-                HStack(spacing: 6) {
-                    Image(systemName: "cube.box.fill")
-                        .foregroundStyle(.cyan)
-                    Text("Owned: \(storeManager.reviveCount)")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background(.ultraThinMaterial)
-                .clipShape(Capsule())
-                
-                // Buy Button
-                Button(action: {
-                    if storeManager.buyRevive() {
-                        AudioHapticManager.shared.playSound(named: "PowerUp")
-                        AudioHapticManager.shared.playSuccessHaptic()
-                    } else {
-                        AudioHapticManager.shared.playFailureHaptic()
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "bolt.fill")
-                        Text("1500 SP")
-                    }
-                    .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    .foregroundStyle(storeManager.balance >= 1500 ? .black : .white.opacity(0.5))
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 24)
-                    .background(storeManager.balance >= 1500 ? Color.yellow : Color.gray.opacity(0.3))
-                    .clipShape(Capsule())
-                }
-                .padding(.bottom, 12)
+        ConsumableCard(
+            icon: "heart.fill",
+            iconColor: .pink,
+            glowColor: .pink,
+            title: "REVIVE",
+            subtitle: "Restore 1 life\nin gameplay",
+            count: storeManager.reviveCount,
+            countColor: .pink,
+            countIcon: "heart.fill",
+            price: 1500,
+            priceLabel: "1,500 SP",
+            canAfford: storeManager.balance >= 1500
+        ) {
+            if storeManager.buyRevive() {
+                AudioHapticManager.shared.playSound(named: "PowerUp")
+                AudioHapticManager.shared.playSuccessHaptic()
+            } else {
+                AudioHapticManager.shared.playFailureHaptic()
             }
-            .frame(maxWidth: .infinity)
         }
     }
 }
+
+struct DashCard: View {
+    @ObservedObject var storeManager: StoreManager
+
+    var body: some View {
+        ConsumableCard(
+            icon: "bolt.horizontal.fill",
+            iconColor: .cyan,
+            glowColor: .cyan,
+            title: "DASH",
+            subtitle: "Phase through\nbarriers once",
+            count: storeManager.dashCount,
+            countColor: .cyan,
+            countIcon: "bolt.fill",
+            price: 600,
+            priceLabel: "600 SP",
+            canAfford: storeManager.balance >= 600
+        ) {
+            if storeManager.buyDash(price: 600) {
+                AudioHapticManager.shared.playSound(named: "PowerUp")
+                AudioHapticManager.shared.playSuccessHaptic()
+            } else {
+                AudioHapticManager.shared.playFailureHaptic()
+            }
+        }
+    }
+}
+
+// MARK: - Shared symmetric consumable card
+
+struct ConsumableCard: View {
+    let icon: String
+    let iconColor: Color
+    let glowColor: Color
+    let title: String
+    let subtitle: String
+    let count: Int
+    let countColor: Color
+    let countIcon: String
+    let price: Int
+    let priceLabel: String
+    let canAfford: Bool
+    let onBuy: () -> Void
+
+    @State private var pulse = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(iconColor.opacity(0.12))
+                    .frame(width: 76, height: 76)
+                Circle()
+                    .stroke(iconColor.opacity(0.28), lineWidth: 1.5)
+                    .frame(width: 76, height: 76)
+                Image(systemName: icon)
+                    .font(.system(size: 32, weight: .bold))
+                    .foregroundStyle(iconColor)
+                    .shadow(color: glowColor.opacity(0.9), radius: pulse ? 16 : 8)
+                    .scaleEffect(pulse ? 1.08 : 1.0)
+                    .animation(
+                        .easeInOut(duration: 1.4).repeatForever(autoreverses: true),
+                        value: pulse
+                    )
+            }
+            .padding(.top, 22)
+            .onAppear { pulse = true }
+
+            // Title
+            Text(title)
+                .font(.system(size: 14, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.top, 12)
+
+            // Subtitle
+            Text(subtitle)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.45))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 4)
+                .padding(.horizontal, 10)
+
+            // Count pill
+            HStack(spacing: 4) {
+                if count == 0 {
+                    Text("EMPTY")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.gray)
+                } else {
+                    ForEach(0..<min(count, 4), id: \.self) { _ in
+                        Image(systemName: countIcon)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(countColor)
+                    }
+                    if count > 4 {
+                        Text("+\(count - 4)")
+                            .font(.system(size: 11, weight: .black, design: .monospaced))
+                            .foregroundStyle(countColor)
+                    }
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 14)
+            .background(countColor.opacity(0.1))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(countColor.opacity(0.22), lineWidth: 1))
+            .padding(.top, 14)
+
+            Spacer(minLength: 14)
+
+            // Buy button
+            Button(action: onBuy) {
+                HStack(spacing: 6) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 11, weight: .bold))
+                    Text(priceLabel)
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                }
+                .foregroundStyle(canAfford ? .black : .white.opacity(0.35))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(
+                    canAfford
+                        ? AnyShapeStyle(iconColor)
+                        : AnyShapeStyle(Color.white.opacity(0.07))
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .disabled(!canAfford)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 18)
+        }
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(iconColor.opacity(0.2), lineWidth: 1)
+        )
+        .shadow(color: glowColor.opacity(0.14), radius: 18)
+    }
+}
+
+typealias PowerUpCard = ReviveCard

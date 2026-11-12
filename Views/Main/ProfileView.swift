@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @ObservedObject var gameViewModel: GameViewModel
+    @ObservedObject var shardManager = MemoryShardManager.shared
     @Binding var isPresented: Bool
     
     // Settings state
@@ -15,38 +16,40 @@ struct ProfileView: View {
                 Color.black.ignoresSafeArea()
                 
                 List {
-                    // MARK: - Profile Stats
+                    // MARK: - Profile Stats & Subject Status
                     Section {
                         HStack(spacing: 16) {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundStyle(LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            Image(systemName: "brain.head.profile")
+                                .font(.system(size: 50))
+                                .foregroundStyle(LinearGradient(colors: [.cyan, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
                             
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("SUBJECT #734")
-                                    .font(.title2)
+                                    .font(.title3)
                                     .bold()
                                     .foregroundStyle(.white)
                                 
-                                Text("Neural Link Active")
+                                let currentSector = GameLevelInfo.info(for: min(gameViewModel.unlockedLevels, 30)).sector
+                                Text("Awakening: \(currentSector.name)")
                                     .font(.caption)
-                                    .foregroundStyle(.green)
+                                    .foregroundStyle(currentSector.themeColor)
                             }
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .listRowBackground(Color.white.opacity(0.05))
                         
                         statRow(icon: "bolt.fill", color: .yellow, title: "Total Synapses", value: "\(StoreManager.shared.balance)")
+                        statRow(icon: "sparkle", color: .yellow, title: "Memory Shards", value: "\(shardManager.totalShardsCollected) / 90")
                         statRow(icon: "crown.fill", color: .orange, title: "High Score", value: "\(gameViewModel.highScore)")
                         
                         // Level Progress Indicator
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text("Memory Restoration")
+                                Text("Neural Restoration")
                                     .font(.caption)
                                     .foregroundStyle(.gray)
                                 Spacer()
-                                Text("\(gameViewModel.unlockedLevels)/30")
+                                Text("\(gameViewModel.unlockedLevels)/30 Chapters")
                                     .font(.caption)
                                     .bold()
                                     .foregroundStyle(.cyan)
@@ -56,8 +59,8 @@ struct ProfileView: View {
                                 ZStack(alignment: .leading) {
                                     Capsule().fill(Color.white.opacity(0.1))
                                     Capsule()
-                                        .fill(LinearGradient(colors: [.cyan, .purple], startPoint: .leading, endPoint: .trailing))
-                                        .frame(width: g.size.width * (CGFloat(gameViewModel.unlockedLevels) / 30.0))
+                                        .fill(LinearGradient(colors: [.cyan, .purple, .mint], startPoint: .leading, endPoint: .trailing))
+                                        .frame(width: g.size.width * (CGFloat(min(gameViewModel.unlockedLevels, 30)) / 30.0))
                                 }
                             }
                             .frame(height: 8)
@@ -65,7 +68,39 @@ struct ProfileView: View {
                         .padding(.vertical, 8)
                         .listRowBackground(Color.white.opacity(0.05))
                     } header: {
-                        Text("SUBJECT INFO")
+                        Text("SUBJECT VITALS & RECOVERY")
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                    
+                    // MARK: - Recovered Memory Logs (Emotional Lore)
+                    Section {
+                        ForEach(1...min(gameViewModel.unlockedLevels, 30), id: \.self) { lvl in
+                            let info = GameLevelInfo.info(for: lvl)
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text("CH. \(lvl) • \(info.title)")
+                                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(info.sector.themeColor)
+                                    Spacer()
+                                    let count = shardManager.shardCount(for: lvl)
+                                    HStack(spacing: 2) {
+                                        ForEach(1...3, id: \.self) { idx in
+                                            Image(systemName: idx <= count ? "sparkle" : "sparkle")
+                                                .font(.system(size: 9))
+                                                .foregroundStyle(idx <= count ? Color.yellow : Color.white.opacity(0.2))
+                                        }
+                                    }
+                                }
+                                Text("\"\(info.memoryLog)\"")
+                                    .font(.system(size: 13, weight: .regular, design: .serif))
+                                    .italic()
+                                    .foregroundStyle(.white.opacity(0.85))
+                            }
+                            .padding(.vertical, 4)
+                            .listRowBackground(Color.white.opacity(0.05))
+                        }
+                    } header: {
+                        Text("RECOVERED MEMORY ARCHIVES")
                             .foregroundStyle(.white.opacity(0.5))
                     }
                     
@@ -148,7 +183,8 @@ struct ProfileView: View {
                             Text("Version")
                                 .foregroundStyle(.white)
                             Spacer()
-                            Text("1.0.0")
+                            Text("2.0 (Pro Edition)")
+                                .font(.system(.body, design: .monospaced))
                                 .foregroundStyle(.white.opacity(0.5))
                         }
                         .listRowBackground(Color.white.opacity(0.05))
@@ -159,13 +195,13 @@ struct ProfileView: View {
                 }
                 .scrollContentBackground(.hidden)
             }
-            .navigationTitle("Profile & Settings")
+            .navigationTitle("Subject Profile & Lore")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { isPresented = false }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 }
