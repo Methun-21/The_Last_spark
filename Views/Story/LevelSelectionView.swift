@@ -5,99 +5,117 @@ struct LevelSelectionView: View {
     var onLevelSelected: (Int) -> Void
     var onBack: () -> Void
     
-    @State private var selectedTab = 0
+    @State private var selectedSector: BrainSector = .brainstem
+    @State private var selectedLevelNumber: Int = 1
     
-    let levels = [
-        GameLevelInfo(
-            number: 1,
-            title: "THE SIGNAL",
-            subtitle: "Stabilization",
-            target: 1000,
-            description: "Stabilize the neural pulse. Establish a connection.",
-            color: Color.cyan,
-            icon: "waveform.path.ecg"
-        ),
-        GameLevelInfo(
-            number: 2,
-            title: "THE MEMORY",
-            subtitle: "Reconnection",
-            target: 2000,
-            description: "Navigate the cortex. Restore fragmented memories.",
-            color: Color.purple,
-            icon: "brain.head.profile"
-        ),
-        GameLevelInfo(
-            number: 3,
-            title: "THE AWAKENING",
-            subtitle: "Resurrection",
-            target: 3000,
-            description: "Break the cycle. Initiate full system wake-up.",
-            color: Color.green,
-            icon: "bolt.fill"
-        )
-    ]
+    var sectorLevels: [GameLevelInfo] {
+        let range: ClosedRange<Int> = {
+            switch selectedSector {
+            case .brainstem: return 1...6
+            case .hippocampus: return 7...12
+            case .amygdala: return 13...18
+            case .occipital: return 19...24
+            case .prefrontal: return 25...30
+            }
+        }()
+        return range.map { GameLevelInfo.info(for: $0) }
+    }
     
     var body: some View {
         ZStack {
-            // Background
             Color.black.ignoresSafeArea()
+            ParticleBackgroundView().opacity(0.3)
             
-            // Particle Background (Subtle)
-            ParticleBackgroundView()
-                .opacity(0.3)
-            
-            VStack {
+            VStack(spacing: 16) {
                 // Header
                 HStack {
                     Button(action: onBack) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 24, weight: .bold))
+                            .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.white)
-                            .padding()
+                            .padding(12)
                             .background(Circle().fill(Color.white.opacity(0.1)))
                     }
                     Spacer()
-                    Text("MEMORY ARCHIVES")
-                        .font(.system(size: 20, weight: .bold, design: .monospaced))
-                        .tracking(3)
-                        .foregroundColor(.white.opacity(0.8))
+                    VStack(spacing: 2) {
+                        Text("MEMORY ARCHIVES")
+                            .font(.system(size: 16, weight: .bold, design: .monospaced))
+                            .tracking(3)
+                            .foregroundColor(.white.opacity(0.9))
+                        Text("\(MemoryShardManager.shared.totalShardsCollected) / 90 Shards Recovered")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.yellow)
+                    }
                     Spacer()
-                    // Invisible spacer for balance
-                    Image(systemName: "chevron.left").opacity(0).padding()
+                    Image(systemName: "chevron.left").opacity(0).padding(12)
                 }
                 .padding(.horizontal)
-                .padding(.top, 20)
+                .padding(.top, 16)
                 
-                Spacer()
+                // Sector Selector Tabs
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(BrainSector.allCases) { sector in
+                            Button(action: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    selectedSector = sector
+                                    if let first = sectorLevels.first {
+                                        selectedLevelNumber = first.number
+                                    }
+                                }
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: sector.icon)
+                                        .font(.system(size: 12))
+                                    Text(sector.name)
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(selectedSector == sector ? sector.themeColor.opacity(0.25) : Color.white.opacity(0.06))
+                                .foregroundStyle(selectedSector == sector ? sector.themeColor : Color.white.opacity(0.6))
+                                .clipShape(Capsule())
+                                .overlay(
+                                    Capsule().stroke(selectedSector == sector ? sector.themeColor : Color.clear, lineWidth: 1)
+                                )
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
                 
-                // Horizontal Scroll
-                TabView(selection: $selectedTab) {
-                    ForEach(0..<levels.count, id: \.self) { index in
+                // Horizontal Card Carousel for current sector
+                TabView(selection: $selectedLevelNumber) {
+                    ForEach(sectorLevels) { level in
                         LevelCard(
-                            level: levels[index],
-                            isUnlocked: index + 1 <= viewModel.unlockedLevels,
+                            level: level,
+                            isUnlocked: level.number <= viewModel.unlockedLevels,
+                            shardsCollected: MemoryShardManager.shared.shardCount(for: level.number),
                             onPlay: {
-                                onLevelSelected(levels[index].number)
+                                onLevelSelected(level.number)
                             }
                         )
-                        .tag(index)
+                        .tag(level.number)
                     }
                 }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
-                .frame(height: 500)
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                 
-                Spacer()
-                
-                // Progress Indicator
+                // Shard Count / Indicator Dots
                 HStack(spacing: 8) {
-                    ForEach(0..<levels.count, id: \.self) { index in
+                    ForEach(sectorLevels) { level in
                         Circle()
-                            .fill(index == selectedTab ? Color.white : Color.white.opacity(0.3))
+                            .fill(level.number == selectedLevelNumber ? selectedSector.themeColor : Color.white.opacity(0.2))
                             .frame(width: 8, height: 8)
                     }
                 }
-                .padding(.bottom, 40)
+                .padding(.bottom, 24)
             }
+        }
+        .onAppear {
+            // Default to highest unlocked level's sector
+            let current = min(viewModel.selectedLevel, 30)
+            selectedLevelNumber = current
+            selectedSector = GameLevelInfo.info(for: current).sector
         }
     }
 }
@@ -105,117 +123,118 @@ struct LevelSelectionView: View {
 struct LevelCard: View {
     let level: GameLevelInfo
     let isUnlocked: Bool
+    let shardsCollected: Int
     var onPlay: () -> Void
     
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Card Background
-                RoundedRectangle(cornerRadius: 30)
-                    .fill(Color.black)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 30)
-                            .stroke(
-                                LinearGradient(
-                                    colors: isUnlocked ? [level.color, level.color.opacity(0.3)] : [.gray.opacity(0.3), .clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                    )
-                    .shadow(color: isUnlocked ? level.color.opacity(0.4) : .clear, radius: 20)
-                
-                VStack(spacing: 20) {
-                    // Level Number
-                    Text("CHAPTER 0\(level.number)")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .tracking(4)
+        ZStack {
+            RoundedRectangle(cornerRadius: 28)
+                .fill(Color.black.opacity(0.85))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28)
+                        .stroke(
+                            LinearGradient(
+                                colors: isUnlocked ? [level.color, level.color.opacity(0.3)] : [.gray.opacity(0.3), .clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 2
+                        )
+                )
+                .shadow(color: isUnlocked ? level.color.opacity(0.35) : .clear, radius: 18)
+            
+            VStack(spacing: 16) {
+                // Top Sector Tag & Shards
+                HStack {
+                    Text("CHAPTER \(level.number)")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .foregroundColor(isUnlocked ? level.color : .gray)
-                        .opacity(0.8)
-                    
-                    // Icon
-                    ZStack {
-                        Circle()
-                            .fill(LinearGradient(colors: [level.color.opacity(0.2), .clear], startPoint: .top, endPoint: .bottom))
-                            .frame(width: 100, height: 100)
-                        
-                        Image(systemName: isUnlocked ? level.icon : "lock.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(isUnlocked ? level.color : .gray)
-                            .shadow(color: isUnlocked ? level.color : .clear, radius: 10)
-                    }
-                    .padding(.vertical, 10)
-                    
-                    // Title
-                    VStack(spacing: 5) {
-                        Text(level.title)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(isUnlocked ? .white : .gray)
-                            .shadow(color: isUnlocked ? level.color.opacity(0.5) : .clear, radius: 10)
-                        
-                        Text(level.subtitle)
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(.gray)
-                    }
-                    
-                    // Divider
-                    Rectangle()
-                        .fill(LinearGradient(colors: [.clear, isUnlocked ? level.color.opacity(0.5) : .gray.opacity(0.3), .clear], startPoint: .leading, endPoint: .trailing))
-                        .frame(height: 1)
-                        .padding(.vertical, 10)
-                    
-                    // Description
-                    Text(level.description)
-                        .font(.system(size: 16))
-                        .foregroundColor(.gray.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
-                        .frame(height: 50)
                     
                     Spacer()
                     
-                    // Target
-                    HStack {
-                        Text("TARGET:")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
-                            .foregroundColor(.gray)
-                        Text("\(level.target)")
-                            .font(.system(size: 16, weight: .bold, design: .monospaced))
-                            .foregroundColor(isUnlocked ? .white : .gray)
-                    }
-                    .padding(.bottom, 10)
-                    
-                    // Play Button
-                    Button(action: onPlay) {
-                        HStack {
-                            Text(isUnlocked ? "ENTER SIMULATION" : "LOCKED")
-                            if isUnlocked {
-                                Image(systemName: "arrow.right")
-                            }
+                    HStack(spacing: 4) {
+                        ForEach(1...3, id: \.self) { idx in
+                            Image(systemName: idx <= shardsCollected ? "sparkle" : "sparkle")
+                                .font(.system(size: 12))
+                                .foregroundColor(idx <= shardsCollected ? .yellow : .white.opacity(0.2))
                         }
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(isUnlocked ? .black : .white.opacity(0.3))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(isUnlocked ? level.color : Color.white.opacity(0.1))
-                        .cornerRadius(20)
-                        .shadow(color: isUnlocked ? level.color.opacity(0.5) : .clear, radius: 10)
                     }
-                    .disabled(!isUnlocked)
                 }
-                .padding(30)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 30)
-            .contentShape(Rectangle()) // Make the whole area tappable
-            .onTapGesture {
+                
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(colors: [level.color.opacity(0.25), .clear], startPoint: .top, endPoint: .bottom))
+                        .frame(width: 72, height: 72)
+                    
+                    Image(systemName: isUnlocked ? level.icon : "lock.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(isUnlocked ? level.color : .gray)
+                }
+                
+                // Titles
+                VStack(spacing: 4) {
+                    Text(level.title)
+                        .font(.system(size: 24, weight: .heavy, design: .rounded))
+                        .foregroundColor(isUnlocked ? .white : .gray)
+                    
+                    Text(level.subtitle)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundColor(.gray)
+                }
+                
+                // Memory Log / Lore Quote
                 if isUnlocked {
-                    onPlay()
+                    Text("\"\(level.memoryLog)\"")
+                        .font(.system(size: 12, weight: .regular, design: .serif))
+                        .italic()
+                        .foregroundColor(.white.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.05)))
+                        .frame(height: 52)
+                } else {
+                    Text("Neural pathway locked. Restore preceding synapses to unlock.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                        .frame(height: 52)
                 }
+                
+                Spacer()
+                
+                // Target
+                HStack {
+                    Text("TARGET:")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(.gray)
+                    Text("\(level.target) SYNAPSES")
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundColor(isUnlocked ? .white : .gray)
+                }
+                
+                // Play Button
+                Button(action: onPlay) {
+                    HStack(spacing: 8) {
+                        Text(isUnlocked ? "ENTER SYNAPSE" : "LOCKED")
+                        if isUnlocked {
+                            Image(systemName: "arrow.right")
+                        }
+                    }
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(isUnlocked ? .black : .white.opacity(0.3))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(isUnlocked ? level.color : Color.white.opacity(0.1))
+                    .cornerRadius(18)
+                    .shadow(color: isUnlocked ? level.color.opacity(0.5) : .clear, radius: 10)
+                }
+                .disabled(!isUnlocked)
             }
+            .padding(24)
         }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 10)
     }
 }
-
-

@@ -8,6 +8,7 @@ public struct MenuView: View {
     
     @State private var showStore = false
     @State private var showProfile = false
+    @State private var showLevelSelect = false
     @State private var selectedStoreTab: StoreView.StoreTab = .skins
     @State private var isVoidPulsing = false
     
@@ -176,6 +177,29 @@ public struct MenuView: View {
                         .fill(.white.opacity(0.1))
                         .frame(width: 1, height: 30)
                     
+                    // CHAPTERS (Archive)
+                    Button(action: {
+                        playHaptic()
+                        showLevelSelect = true
+                    }) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "map.fill")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(.mint)
+                                .shadow(color: .mint.opacity(0.4), radius: 6)
+                            Text("Chapters")
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                    }
+                    
+                    // Divider
+                    Rectangle()
+                        .fill(.white.opacity(0.1))
+                        .frame(width: 1, height: 30)
+                    
                     // SHOP
                     Button(action: {
                         playHaptic()
@@ -247,6 +271,19 @@ public struct MenuView: View {
         }
         .sheet(isPresented: $showProfile) {
             ProfileView(gameViewModel: gameViewModel, isPresented: $showProfile)
+        }
+        .sheet(isPresented: $showLevelSelect) {
+            LevelSelectionView(
+                viewModel: gameViewModel,
+                onLevelSelected: { level in
+                    showLevelSelect = false
+                    gameViewModel.selectedLevel = level
+                    onModeSelected(.story)
+                },
+                onBack: {
+                    showLevelSelect = false
+                }
+            )
         }
     }
     
